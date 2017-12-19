@@ -190,8 +190,6 @@ def annotate_images(origin_dir, output_dir, bg_color):
     label_map_dict = {}
     if os.path.exists(label_map_path):
         label_map_dict = label_map_util.get_label_map_dict(label_map_path)
-    print(label_map_dict)
-    sys.exit(1)
 
     id_index = 0
     for entity_id in entities:
