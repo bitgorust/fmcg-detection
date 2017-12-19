@@ -238,14 +238,14 @@ def annotate_images(origin_dir, output_dir, bg_color):
             xmin, ymin, xmax, ymax = rect
             print('xmin', xmin, 'ymin', ymin, 'xmax', xmax, 'ymax', ymax)
 
-            output_file = os.path.join(
+            output_image = os.path.join(
                 images_dir, entity_id + '_' + str(i) + '.jpg')
-            cv.imwrite(output_file, image)
+            cv.imwrite(output_image, image)
 
             annotation_file = os.path.join(
                 xmls_dir, entity_id + '_' + str(i) + '.xml')
             with open(annotation_file, 'w') as f:
-                f.write(get_annotation_xml(output_file, width,
+                f.write(get_annotation_xml(output_image, width,
                                            height, entity_id, rect, depth))
             entity_valid = True
 
