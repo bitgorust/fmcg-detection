@@ -2,7 +2,9 @@ import os
 import sys
 import numpy as np
 import cv2 as cv
-import label_map_pb2
+
+sys.path.append("d:/tensorflow/models/research/object_detection")
+from utils import label_map_util
 
 
 def entity_dirs(origin_dir):
@@ -155,6 +157,20 @@ def get_annotation_xml(fullpath, width, height, name, rect, depth=3):
     })
 
 
+def serialize_to_pbtxt(filepath, label_map={}):
+    with open(filepath, 'w') as f:
+        for label_name, label_id in sorted(label_map.iteritems(), key=lambda (k, v): (v, k)):
+            f.write("""item {
+  id: {id},
+  name: '{name}'
+}
+
+""".format(**{
+                'id': label_id,
+                'name': label_name
+            }))
+
+
 def annotate_images(origin_dir, output_dir, bg_color):
     entities = entity_dirs(origin_dir)
     len_entities = len(entities)
@@ -170,14 +186,12 @@ def annotate_images(origin_dir, output_dir, bg_color):
     if not os.path.exists(xmls_dir):
         os.makedirs(xmls_dir)
 
-    label_map = label_map_pb2.LabelMap()
     label_map_path = os.path.join(output_dir, 'label_map.pbtxt')
-    try:
-        f = open(label_map_path, 'rb')
-        label_map.ParseFromString(f.read())
-        f.close()
-    except IOError:
-        print(label_map_path + ' does not exist.')
+    label_map_dict = {}
+    if os.path.exists(label_map_path):
+        label_map_dict = label_map_util.get_label_map_dict(label_map_path)
+    print(label_map_dict)
+    sys.exit(1)
 
     id_index = 0
     for entity_id in entities:
@@ -224,25 +238,22 @@ def annotate_images(origin_dir, output_dir, bg_color):
             xmin, ymin, xmax, ymax = rect
             print('xmin', xmin, 'ymin', ymin, 'xmax', xmax, 'ymax', ymax)
 
-            image_file = os.path.join(
+            output_file = os.path.join(
                 images_dir, entity_id + '_' + str(i) + '.jpg')
-            cv.imwrite(image_file, image)
+            cv.imwrite(output_file, image)
 
             annotation_file = os.path.join(
                 xmls_dir, entity_id + '_' + str(i) + '.xml')
             with open(annotation_file, 'w') as f:
-                f.write(get_annotation_xml(image_path, width,
+                f.write(get_annotation_xml(output_file, width,
                                            height, entity_id, rect, depth))
             entity_valid = True
 
-        if entity_valid:
-            id_index += 1
-            item = label_map.items.add()
-            item.id = id_index
-            item.name = entity_id
+        if entity_valid and not entity_id in label_map_dict:
+            label_id = len(label_map_dict)
+            label_map_dict[entity_id] = label_id
 
-    with open(label_map_path, 'wb') as f:
-        f.write(label_map.SerializeToString())
+    serialize_to_pbtxt(label_map_path, label_map_dict)
 
 
 if __name__ == '__main__':
