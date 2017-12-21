@@ -92,8 +92,8 @@ def rect_overlaps(a, b):
     return range_overlap(ax1, ax2, bx1, bx2) and range_overlap(ay1, ay2, by1, by2)
 
 
-def get_grouped_rects(contours):
-    contours = sorted(contours, key=cv.contourArea, reverse=True)
+def get_grouped_rects(contours, reversed=True):
+    contours = sorted(contours, key=cv.contourArea, reverse=reversed)
     boxes = []
     for c in contours:
         x, y, w, h = cv.boundingRect(c)
@@ -110,7 +110,7 @@ def get_grouped_rects(contours):
                                max(cx2, x2), max(cy2, y2))
         if not matched:
             clusters.append(box)
-    return clusters
+    return [np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.int32) for x1, y1, x2, y2 in clusters]
 
 
 def get_annotation_xml(fullpath, width, height, name, rect, depth=3):
@@ -159,7 +159,7 @@ def get_annotation_xml(fullpath, width, height, name, rect, depth=3):
 
 def serialize_to_pbtxt(filepath, label_map={}):
     with open(filepath, 'w') as f:
-        for label_name, label_id in sorted(label_map.iteritems(), key=lambda (k, v): (v, k)):
+        for label_name, label_id in sorted(label_map.iteritems(), key=lambda kv: (-kv[1], kv[0])):
             f.write("""item {
   id: {id},
   name: '{name}'
@@ -232,8 +232,8 @@ def annotate_images(origin_dir, output_dir, bg_color):
             if len_rects == 0:
                 continue
 
-            rect = rects[0]
-            xmin, ymin, xmax, ymax = rect
+            x, y, w, h = rects[0]
+            xmin, ymin, xmax, ymax = x, y, x + w, y + h
             print('xmin', xmin, 'ymin', ymin, 'xmax', xmax, 'ymax', ymax)
 
             output_image = os.path.join(
