@@ -7,6 +7,9 @@ import cv2 as cv
 def h_range(bg_color='green'):
     lower = np.array([35, 43, 46])
     upper = np.array([99, 255, 255])
+    if bg_color == 'white':
+        lower = np.array([0, 0, 46])
+        upper = np.array([180, 43, 255])
     return lower, upper
 
 
@@ -14,9 +17,14 @@ def get_mask(image, bg_color='green'):
     image = cv.cvtColor(image, cv.COLOR_BGR2HSV)
     h_lower, h_upper = h_range(bg_color)
     mask = cv.inRange(image, h_lower, h_upper)
-    _, mask = cv.threshold(mask, 128, 255, 1)
-    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (8, 3))
-    return cv.dilate(mask, kernel, iterations=2)
+    _, mask = cv.threshold(cv.GaussianBlur(mask, (5, 5), 0), 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
+    _, mask = cv.threshold(mask, 127, 255, cv.THRESH_BINARY_INV)
+    # return cv.Canny(mask, 100, 200)
+    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (10, 10))
+    # return cv.dilate(cv.Canny(mask, 100, 200), kernel, iterations=5)
+    # return cv.erode(mask, kernel, iterations=3)
+    # return cv.morphologyEx(mask, cv.MORPH_CLOSE, kernel)
+    return cv.dilate(mask, kernel, iterations=1)
 
 
 def is_inside(a, b):
@@ -57,33 +65,35 @@ def sub_images(image_path, output_dir, bg_color='green'):
     height, width, depth = image.shape
     print(width, height, depth)
 
-    height1 = int(height / 3.0)
-    height2 = int(height * 2.0 / 3.0)
-    width1 = int(width / 3.0)
-    width2 = int(width * 2.0 / 3.0)
+    # height1 = int(height / 3.0)
+    # height2 = int(height * 2.0 / 3.0)
+    # width1 = int(width / 3.0)
+    # width2 = int(width * 2.0 / 3.0)
 
-    output_image = os.path.join(output_dir, image_name + '_91.jpg')
-    cv.imwrite(output_image, image[0:height1, 0:width1])
-    output_image = os.path.join(output_dir, image_name + '_92.jpg')
-    cv.imwrite(output_image, image[0:height1, width1:width2])
-    output_image = os.path.join(output_dir, image_name + '_93.jpg')
-    cv.imwrite(output_image, image[0:height1, width2:width])
-    output_image = os.path.join(output_dir, image_name + '_94.jpg')
-    cv.imwrite(output_image, image[height1:height2, 0:width1])
-    output_image = os.path.join(output_dir, image_name + '_95.jpg')
-    cv.imwrite(output_image, image[height1:height2, width1:width2])
-    output_image = os.path.join(output_dir, image_name + '_96.jpg')
-    cv.imwrite(output_image, image[height1:height2, width2:width])
-    output_image = os.path.join(output_dir, image_name + '_97.jpg')
-    cv.imwrite(output_image, image[height2:height, 0:width1])
-    output_image = os.path.join(output_dir, image_name + '_98.jpg')
-    cv.imwrite(output_image, image[height2:height, width1:width2])
-    output_image = os.path.join(output_dir, image_name + '_99.jpg')
-    cv.imwrite(output_image, image[height2:height, width2:width])
+    # output_image = os.path.join(output_dir, image_name + '_91.jpg')
+    # cv.imwrite(output_image, image[0:height1, 0:width1])
+    # output_image = os.path.join(output_dir, image_name + '_92.jpg')
+    # cv.imwrite(output_image, image[0:height1, width1:width2])
+    # output_image = os.path.join(output_dir, image_name + '_93.jpg')
+    # cv.imwrite(output_image, image[0:height1, width2:width])
+    # output_image = os.path.join(output_dir, image_name + '_94.jpg')
+    # cv.imwrite(output_image, image[height1:height2, 0:width1])
+    # output_image = os.path.join(output_dir, image_name + '_95.jpg')
+    # cv.imwrite(output_image, image[height1:height2, width1:width2])
+    # output_image = os.path.join(output_dir, image_name + '_96.jpg')
+    # cv.imwrite(output_image, image[height1:height2, width2:width])
+    # output_image = os.path.join(output_dir, image_name + '_97.jpg')
+    # cv.imwrite(output_image, image[height2:height, 0:width1])
+    # output_image = os.path.join(output_dir, image_name + '_98.jpg')
+    # cv.imwrite(output_image, image[height2:height, width1:width2])
+    # output_image = os.path.join(output_dir, image_name + '_99.jpg')
+    # cv.imwrite(output_image, image[height2:height, width2:width])
 
     mask = get_mask(image, bg_color)
-    # cv.imshow('marked', image)
+    # cv.namedWindow(image_name, cv.WINDOW_NORMAL)
+    # cv.imshow(image_name, mask)
     # cv.waitKey(0)
+    # return
 
     _, contours, _ = cv.findContours(
         mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
@@ -91,10 +101,25 @@ def sub_images(image_path, output_dir, bg_color='green'):
     print(str(len_contours) + ' contours found.')
     if len_contours == 0:
         return
-    # for c in contours:
-    #     x, y, w, h = cv.boundingRect(c)
-    #     cv.rectangle(image, (x - 100, y - 100),
-    #                     (x + w + 100, y + h + 100), (0, 255, 0), 2)
+    x1, y1, w, h = cv.boundingRect(contours[0])
+    x2 = x1 + w
+    y2 = y1 + h
+    for i, c in enumerate(contours):
+        if i == 0:
+            continue
+        x, y, w, h = cv.boundingRect(c)
+        x1 = min(x, x1)
+        y1 = min(y, y1)
+        x2 = max(x + w, x2)
+        y2 = max(y + h, y2)
+
+    cv.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+    cv.namedWindow('mask', cv.WINDOW_NORMAL)
+    cv.imshow('mask', mask)
+    cv.namedWindow(image_name, cv.WINDOW_NORMAL)
+    cv.imshow(image_name, image)
+    cv.waitKey(0)
+    return
 
     contours = dilate(contours, 100)
     len_contours = len(contours)
@@ -136,5 +161,7 @@ if __name__ == '__main__':
     image_dir = sys.argv[1]
     output_dir = sys.argv[2]
     for file in os.listdir(image_dir):
+        if file != 'IMG_20171226_191405.jpg':
+            continue
         image_path = os.path.join(image_dir, file)
-        sub_images(image_path, output_dir)
+        sub_images(image_path, output_dir, 'green')

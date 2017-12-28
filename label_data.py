@@ -232,7 +232,8 @@ def annotate_images(origin_dir, output_dir, bg_color):
             if len_rects == 0:
                 continue
 
-            x, y, w, h = rects[0]
+            rect = rects[0]
+            x, y, w, h = rect
             xmin, ymin, xmax, ymax = x, y, x + w, y + h
             print('xmin', xmin, 'ymin', ymin, 'xmax', xmax, 'ymax', ymax)
 
