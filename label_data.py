@@ -7,9 +7,13 @@ sys.path.append("d:/tensorflow/models/research/object_detection")
 from utils import label_map_util
 
 
-def entity_dirs(origin_dir):
+def entity_dirs(origin_dir, offset=0, length=1000):
     dirs = []
-    for entity in os.listdir(origin_dir):
+    entities = sorted(os.listdir(origin_dir))
+    print(len(entities), offset, length)
+    if len(entities) <= offset:
+        return dirs
+    for entity in entities[offset:offset+length] if offset + length <= len(entities) else entities[offset:]:
         entity_path = os.path.join(origin_dir, entity)
         if os.path.isdir(entity_path) and not entity.startswith('.'):
             dirs.append(entity)
@@ -110,7 +114,7 @@ def get_grouped_rects(contours, reversed=True):
                                max(cx2, x2), max(cy2, y2))
         if not matched:
             clusters.append(box)
-    return [np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.int32) for x1, y1, x2, y2 in clusters]
+    return clusters
 
 
 def get_annotation_xml(fullpath, width, height, name, rect, depth=3):
@@ -171,8 +175,8 @@ def serialize_to_pbtxt(filepath, label_map={}):
             }))
 
 
-def annotate_images(origin_dir, output_dir, bg_color):
-    entities = entity_dirs(origin_dir)
+def annotate_images(origin_dir, output_dir, offset=0, length=1000, bg_color='green'):
+    entities = entity_dirs(origin_dir, offset, length)
     len_entities = len(entities)
     print(str(len_entities) + ' entities found.')
     if len_entities == 0:
@@ -233,8 +237,7 @@ def annotate_images(origin_dir, output_dir, bg_color):
                 continue
 
             rect = rects[0]
-            x, y, w, h = rect
-            xmin, ymin, xmax, ymax = x, y, x + w, y + h
+            xmin, ymin, xmax, ymax = rect
             print('xmin', xmin, 'ymin', ymin, 'xmax', xmax, 'ymax', ymax)
 
             output_image = os.path.join(
@@ -252,11 +255,13 @@ def annotate_images(origin_dir, output_dir, bg_color):
             label_id = len(label_map_dict)
             label_map_dict[entity_id] = label_id
 
-    serialize_to_pbtxt(label_map_path, label_map_dict)
+    # serialize_to_pbtxt(label_map_path, label_map_dict)
 
 
 if __name__ == '__main__':
     origin_dir = sys.argv[1]
     output_dir = sys.argv[2]
-    bg_color = sys.argv[3] if len(sys.argv) > 3 else 'green'
-    annotate_images(origin_dir, output_dir, bg_color)
+    offset = int(sys.argv[3]) if len(sys.argv) > 3 else 0
+    length = int(sys.argv[4]) if len(sys.argv) > 4 else 1000
+    bg_color = sys.argv[5] if len(sys.argv) > 5 else 'green'
+    annotate_images(origin_dir, output_dir, offset, length, bg_color)
