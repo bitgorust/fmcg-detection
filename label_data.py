@@ -13,7 +13,7 @@ def entity_dirs(origin_dir, offset=0, length=1000):
     print(len(entities), offset, length)
     if len(entities) <= offset:
         return dirs
-    for entity in entities[offset:offset+length] if offset + length <= len(entities) else entities[offset:]:
+    for entity in entities[offset:offset + length] if offset + length <= len(entities) else entities[offset:]:
         entity_path = os.path.join(origin_dir, entity)
         if os.path.isdir(entity_path) and not entity.startswith('.'):
             dirs.append(entity)
@@ -163,16 +163,9 @@ def get_annotation_xml(fullpath, width, height, name, rect, depth=3):
 
 def serialize_to_pbtxt(filepath, label_map={}):
     with open(filepath, 'w') as f:
-        for label_name, label_id in sorted(label_map.iteritems(), key=lambda kv: (-kv[1], kv[0])):
-            f.write("""item {
-  id: {id},
-  name: '{name}'
-}
-
-""".format(**{
-                'id': label_id,
-                'name': label_name
-            }))
+        for label_name, label_id in sorted(label_map.items(), key=lambda kv: (-kv[1], kv[0]), reverse=True):
+            print(label_name, label_id)
+            f.write('item {\n  id: ' + str(label_id) + ',\n  name: \'' + str(label_name) + '\'\n}\n\n')
 
 
 def annotate_images(origin_dir, output_dir, offset=0, length=1000, bg_color='green'):
@@ -190,11 +183,6 @@ def annotate_images(origin_dir, output_dir, offset=0, length=1000, bg_color='gre
     if not os.path.exists(xmls_dir):
         os.makedirs(xmls_dir)
 
-    label_map_path = os.path.join(output_dir, 'label_map.pbtxt')
-    label_map_dict = {}
-    if os.path.exists(label_map_path):
-        label_map_dict = label_map_util.get_label_map_dict(label_map_path)
-
     id_index = 0
     for entity_id in entities:
         entity_path = os.path.join(origin_dir, entity_id)
@@ -205,7 +193,6 @@ def annotate_images(origin_dir, output_dir, offset=0, length=1000, bg_color='gre
         if len_images == 0:
             continue
 
-        entity_valid = False
         for i, file in enumerate(images):
             image_path = os.path.join(entity_path, file)
             print('processing ' + file + '(' + str(i) +
@@ -249,13 +236,23 @@ def annotate_images(origin_dir, output_dir, offset=0, length=1000, bg_color='gre
             with open(annotation_file, 'w') as f:
                 f.write(get_annotation_xml(output_image, width,
                                            height, entity_id, rect, depth))
-            entity_valid = True
 
-        if entity_valid and not entity_id in label_map_dict:
-            label_id = len(label_map_dict)
-            label_map_dict[entity_id] = label_id
 
-    # serialize_to_pbtxt(label_map_path, label_map_dict)
+def serialize_labels(label_map_path, images_dir):
+    label_map_dict = {}
+    if os.path.exists(label_map_path):
+        label_map_dict = label_map_util.get_label_map_dict(label_map_path)
+    images = os.listdir(images_dir)
+    labels = set()
+    for image in images:
+        label = image.split('_')[0]
+        labels.add(label)
+    labels = sorted(list(labels))
+    for label_name in labels:
+        if label_name not in label_map_dict:
+            label_id = len(label_map_dict) + 1
+            label_map_dict[label_name] = label_id
+    serialize_to_pbtxt(label_map_path, label_map_dict)
 
 
 if __name__ == '__main__':
@@ -265,3 +262,7 @@ if __name__ == '__main__':
     length = int(sys.argv[4]) if len(sys.argv) > 4 else 1000
     bg_color = sys.argv[5] if len(sys.argv) > 5 else 'green'
     annotate_images(origin_dir, output_dir, offset, length, bg_color)
+
+    label_map_path = os.path.join(output_dir, 'label_map.pbtxt')
+    images_dir = os.path.join(output_dir, 'images')
+    serialize_labels(label_map_path, images_dir)
