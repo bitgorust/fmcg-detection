@@ -10,6 +10,8 @@ brisk = cv2.BRISK_create()
 # freak = cv2.xfeatures2d.FREAK_create()
 orb = brisk
 
+factor = 0.4
+
 candidates = []
 for image in os.listdir('feature_test'):
     if image.startswith('IMG_') or image.startswith('Snipaste'):
@@ -17,6 +19,12 @@ for image in os.listdir('feature_test'):
     # if not image.startswith('Snipaste_'):
     #     continue
     img = cv2.imread('feature_test/' + image, 0)
+    # h, w = img.shape[:2]
+    # print('img', h, w)
+    img = cv2.resize(img, None, fx=factor, fy=factor, interpolation=cv2.INTER_AREA)
+    # h, w = res.shape[:2]
+    # cv2.imshow('res', res)
+    # print('res', h, w)
     # kp = fast.detect(img, None)
     # kp, des = freak.compute(img, kp)
     kp, des = orb.detectAndCompute(img, None)
@@ -25,6 +33,10 @@ for image in os.listdir('feature_test'):
         'des': des,
         'img': img
     })
+    # cv2.waitKey(0)
+    # img2 = cv2.drawKeypoints(img,kp,None,color=(0,255,0), flags=0)
+    # plt.imshow(img2),plt.show()
+    # cv2.waitKey(0)
 
 bf = cv2.BFMatcher(cv2.NORM_HAMMING)
 
@@ -39,6 +51,7 @@ flann = cv2.FlannBasedMatcher(index_params, search_params)
 
 starttime = datetime.datetime.now()
 img = cv2.imread('feature_test/IMG_20171226_163055.jpg', 0)  # trainImage
+img = cv2.resize(img, None, fx=factor, fy=factor, interpolation=cv2.INTER_AREA)
 # orb = cv2.ORB_create(nfeatures=5000)
 kp, des = orb.detectAndCompute(img, None)
 for candidate in candidates:
@@ -57,10 +70,27 @@ for candidate in candidates:
         if m.distance < 0.75 * n.distance:
             good.append([m])
     print(len(candidate['kp']), len(kp), len(good))
-    result = cv2.drawMatchesKnn(
-        candidate['img'], candidate['kp'], img, kp, good, None, flags=2)
-    plt.imshow(result), plt.show()
-    cv2.waitKey(0)
+    # if len(good) > 10:
+    #     src_pts = np.float32([ candidate['kp'][m.queryIdx].pt for m in good ]).reshape(-1,1,2)
+    #     dst_pts = np.float32([ kp[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
+
+    #     M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+    #     matchesMask = mask.ravel().tolist()
+
+    #     h,w = candidate['img'].shape
+    #     pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
+    #     dst = cv2.perspectiveTransform(pts,M)
+
+    #     img = cv2.polylines(img, [np.int32(dst)],True,255,3, cv2.LINE_AA)
+    # result = cv2.drawMatchesKnn(
+    #     candidate['img'], candidate['kp'], img, kp, good, None, flags=2)
+    # draw_params = dict(matchColor = (0,255,0), # draw matches in green color
+    #                singlePointColor = None,
+    #                matchesMask = matchesMask, # draw only inliers
+    #                flags = 2)
+    # result = cv2.drawMatches(candidate['img'],candidate['kp'],img,kp,good,None,**draw_params)
+    # plt.imshow(result), plt.show()
+    # cv2.waitKey(0)
     continue
 
     # Need to draw only good matches, so create a mask
