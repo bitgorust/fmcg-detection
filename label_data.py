@@ -116,6 +116,28 @@ def get_grouped_rects(contours, reversed=True):
             clusters.append(box)
     return clusters
 
+def get_roi(image, bg_color='green'):
+    mask = get_mask(image, bg_color)
+
+    _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    len_contours = len(contours)
+    print(str(len_contours) + ' contours found.')
+    if len_contours == 0:
+        return None
+
+    unified = unify(contours)
+    len_unified = len(unified)
+    print(str(len_unified) + ' unified found.')
+    if len_unified == 0:
+        return None
+
+    rects = get_grouped_rects(unified)
+    len_rects = len(rects)
+    print(str(len_rects) + ' rects found.')
+    if len_rects == 0:
+        return None
+
+    return rects[0]
 
 def get_annotation_xml(fullpath, width, height, name, rect, depth=3):
     folder_full_path, filename = os.path.split(fullpath)
@@ -202,28 +224,10 @@ def annotate_images(origin_dir, output_dir, offset=0, length=1000, bg_color='gre
             height, width, depth = image.shape
             print(height, width, depth)
 
-            mask = get_mask(image, bg_color)
-
-            _, contours, _ = cv.findContours(
-                mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-            len_contours = len(contours)
-            print(str(len_contours) + ' contours found.')
-            if len_contours == 0:
+            rect = get_roi(image, bg_color)
+            if not rect:
                 continue
 
-            unified = unify(contours)
-            len_unified = len(unified)
-            print(str(len_unified) + ' unified found.')
-            if len_unified == 0:
-                continue
-
-            rects = get_grouped_rects(unified)
-            len_rects = len(rects)
-            print(str(len_rects) + ' rects found.')
-            if len_rects == 0:
-                continue
-
-            rect = rects[0]
             xmin, ymin, xmax, ymax = rect
             print('xmin', xmin, 'ymin', ymin, 'xmax', xmax, 'ymax', ymax)
 
@@ -261,8 +265,21 @@ if __name__ == '__main__':
     offset = int(sys.argv[3]) if len(sys.argv) > 3 else 0
     length = int(sys.argv[4]) if len(sys.argv) > 4 else 1000
     bg_color = sys.argv[5] if len(sys.argv) > 5 else 'green'
+
     annotate_images(origin_dir, output_dir, offset, length, bg_color)
 
     label_map_path = os.path.join(output_dir, 'label_map.pbtxt')
     images_dir = os.path.join(output_dir, 'images')
     serialize_labels(label_map_path, images_dir)
+
+    # for image in os.listdir(origin_dir):
+    #     if image.startswith('.'):
+    #         continue
+    #     image_path = origin_dir + '/' + image
+    #     img = cv.imread(image_path)
+    #     img = crop(img)
+    #     rect = get_roi(img, bg_color)
+    #     if not rect:
+    #         continue
+    #     x1, y1, x2, y2 = rect
+    #     cv.imwrite(output_dir + '/' + image, img[y1:y2, x1:x2])
