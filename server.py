@@ -49,20 +49,24 @@ from bottle import run, get, post, request, response
 PROCESSES = 12
 
 MATCH_DISTANCE = 0.7
-GOOD_THRESHOLD = 10
-RESIZE_FACTOR = 1.0
+GOOD_THRESHOLD = 5
+RESIZE_FACTOR = 0.4
 
 pool = ThreadPool(PROCESSES)
 brisk = cv2.BRISK_create()
 bf = cv2.BFMatcher(cv2.NORM_HAMMING)
 candidates = {}
-for image in os.listdir('candidates'):
-    if image.startswith('.'):
+for file in os.listdir('candidates'):
+    if file.startswith('.'):
         continue
-    [name, idx] = image.split('_')
+    filename, _ = _, ext = os.path.splitext(file)
+    info = filename.split('_')
+    if len(info) != 3:
+        continue
+    [name, idx, threshold] = info
     # if idx == '0':
     #     continue
-    img = cv2.imread('candidates/' + image, 0)
+    img = cv2.imread('candidates/' + file, 0)
     if RESIZE_FACTOR < 1.0:
         img = cv2.resize(img, None, fx=RESIZE_FACTOR,
                      fy=RESIZE_FACTOR, interpolation=cv2.INTER_CUBIC)
@@ -72,7 +76,9 @@ for image in os.listdir('candidates'):
     candidates[name].append({
         'kp': kp,
         'des': des,
-        'img': img
+        'img': img,
+        'file': file,
+        'threshold': float(threshold)
     })
 print(str(len(candidates)) + ' candidates')
 
@@ -86,13 +92,17 @@ def count_matches(name, img):
         for m, n in matches:
             if m.distance < MATCH_DISTANCE * n.distance:
                 good.append(m)
-        score = len(good)
-        if score > GOOD_THRESHOLD:
+        score = len(good) / len(candidate['kp'])
+        print(candidate['file'] + ': ' + str(len(good)) + '/' + str(len(candidate['kp'])) + '=' + str(score))
+        if score > candidate['threshold'] * RESIZE_FACTOR:
             src_pts = np.float32(
                 [candidate['kp'][m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
             dst_pts = np.float32(
                 [kp[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
-
+            transform, _ = cv2.findHomography(
+                src_pts, dst_pts, cv2.RANSAC, 5.0)
+            if transform is None:
+                continue
             # contours = []
             # for m in good:
             #     x, y = kp[m.trainIdx].pt
@@ -102,23 +112,25 @@ def count_matches(name, img):
             # pts = np.float32([ [x,y],[x,y+h],[x+w,y+h],[x+w,y] ]).reshape(-1,1,2)
             # img = cv2.fillConvexPoly(img, np.array(pts, np.int32), 1)
 
-            transform, _ = cv2.findHomography(
-                src_pts, dst_pts, cv2.RANSAC, 5.0)
             h, w = candidate['img'].shape
             pts = np.float32(
                 [[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
             dst = cv2.perspectiveTransform(pts, transform)
+            if dst is None:
+                continue
+
             goods.append({
                 'shape': [point for points in dst.tolist() for point in points],
-                'score': score
+                'score': score,
+                'file': candidate['file'],
+                'good': len(good),
+                'kp': len(candidate['kp'])
             })
             img = cv2.fillConvexPoly(img, np.array(dst, np.int32), 1)
-            # img = cv2.polylines(img, [np.int32(dst)],True,255,3, cv2.LINE_AA)
             kp, des = brisk.detectAndCompute(img, None)
 
-            # cv2.namedWindow('result', 16)
-            cv2.imshow(name + str(score), img)
-            cv2.waitKey(0)
+            # cv2.imshow(name + str(score), img)
+            # cv2.waitKey(0)
     return name, goods
 
 @get('/hello')
