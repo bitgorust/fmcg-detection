@@ -244,8 +244,8 @@ def count_matches(name, img):
                 'kp': len_candidate_kp,
                 'threshold': candidate['threshold']
             })
-            cv2.imwrite('test/' + name + '_' + str(index) +
-                        '_' + str(len_good) + '.png', img)
+            # cv2.imwrite('test/' + name + '_' + str(index) +
+            #             '_' + str(len_good) + '.png', img)
             kp, des = orb.detectAndCompute(img, None)
             # cv2.imshow(name + str(score), img)
             # cv2.waitKey(0)
