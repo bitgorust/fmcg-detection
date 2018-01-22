@@ -181,10 +181,8 @@ def count_matches(name, img):
     kp, des = orb.detectAndCompute(img, None)
     # print('detectAndCompute: ' + str(datetime.datetime.now() - headtime))
     goods = []
-    index = 0
     for candidate in candidates[name]:
-        index += 1
-        while True:
+        for index in range(1, 6):
             # starttime = datetime.datetime.now()
             matches = bf.knnMatch(candidate['des'], des, k=2)
             # print('knnMatch: ' + str(datetime.datetime.now() - starttime))
@@ -206,7 +204,7 @@ def count_matches(name, img):
                 break
 
             print(candidate['file'] + ': ' + str(len_good) +
-                '/' + str(len_candidate_kp) + '=' + str(len_good / len_candidate_kp))
+                  '/' + str(len_candidate_kp) + '=' + str(len_good / len_candidate_kp))
 
             if not candidate['expand']:
                 src_pts = np.float32(
@@ -246,7 +244,8 @@ def count_matches(name, img):
                 'kp': len_candidate_kp,
                 'threshold': candidate['threshold']
             })
-            cv2.imwrite('test/' + name + '_' + str(index) + '_' + str(len_good) + '.png', img)
+            # cv2.imwrite('test/' + name + '_' + str(index) +
+            #             '_' + str(len_good) + '.png', img)
             kp, des = orb.detectAndCompute(img, None)
             # cv2.imshow(name + str(score), img)
             # cv2.waitKey(0)
@@ -268,7 +267,7 @@ def count_matches(name, img):
             #      [[x, y], [x, y + h], [x + w, y + h], [x + w, y]]).reshape(-1, 1, 2)
 
             # print(dst)
-            
+
     # print('count_matches: ' + str(datetime.datetime.now() - headtime))
     return name, goods
 
@@ -329,7 +328,7 @@ def detect():
         response.status = 400
         return json.dumps(result)
 
-    image.save('capture/')
+    image.save('capture/', overwrite=True)
 
     img_str = image.file.read()
     result = analyze(img_str)
