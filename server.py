@@ -18,13 +18,14 @@ difficult = {
     '111471': 50,
     '103055': 50,
     '102544': 10,
-    '102573': 10,
+    '102573': 25,
+    '113351': 10,
 }
 
 DEBUG = False
 PROCESSES = 12
 MATCH_DISTANCE = 0.7
-GOOD_THRESHOLD = 15
+GOOD_THRESHOLD = 17
 RESIZE_FACTOR = 1.0
 CANDIDATE_DIR = 'candidates'
 
@@ -86,8 +87,13 @@ def count_matches(name, img, identity=None):
     kp, des = orb.detectAndCompute(img, None) if name not in difficult else brisk.detectAndCompute(img, None)
     goods = []
     for candidate in candidates[name]:
+        len_matches = 0
         for index in range(1, 6):
             matches = bf.knnMatch(candidate['des'], des, k=2)
+            if len(matches) != len_matches:
+                len_matches = len(matches)
+            else:
+                break
 
             good = []
             for match in matches:
