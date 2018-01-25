@@ -16,7 +16,9 @@ print(len(product))
 
 difficult = {
     '111471': 50,
-    '103055': 100,
+    '103055': 50,
+    '102544': 10,
+    '102573': 10,
 }
 
 DEBUG = False
@@ -32,6 +34,7 @@ orb = cv2.ORB_create()
 bf = cv2.BFMatcher(cv2.NORM_HAMMING)
 
 
+candidate_keys = []
 candidates = {}
 for file in os.listdir(CANDIDATE_DIR):
     if file.startswith('.'):
@@ -51,6 +54,7 @@ for file in os.listdir(CANDIDATE_DIR):
                          fy=RESIZE_FACTOR, interpolation=cv2.INTER_CUBIC)
     kp, des = orb.detectAndCompute(img, None) if name not in difficult else brisk.detectAndCompute(img, None)
     if name not in candidates:
+        candidate_keys.append(name)
         candidates[name] = []
     candidates[name].append({
         'kp': kp,
@@ -61,6 +65,7 @@ for file in os.listdir(CANDIDATE_DIR):
         'expand': idx == '0'
     })
 print(str(len(candidates)) + ' candidates')
+candidate_keys = sorted(candidate_keys, key=lambda x: x in ('102573'))
 
 
 def save_result(dir, name, img1, kp1, img2, kp2, good):
@@ -93,7 +98,7 @@ def count_matches(name, img, identity=None):
             len_good = len(good)
             len_candidate_kp = len(candidate['kp'])
 
-            if DEBUG and len_good > 0 and identity is not None:
+            if DEBUG and identity is not None:
                 save_result(identity, '_'.join([str(len_good), str(len(candidate['kp'])), str(len(kp)), candidate['file'], str(index)]), candidate['img'], candidate['kp'], origin, kp, good)
 
             if name not in difficult and candidate['threshold'] == 0 and len_good < GOOD_THRESHOLD * RESIZE_FACTOR:
@@ -157,7 +162,7 @@ def analyze(img_str, identity=None):
         img = cv2.resize(img, None, fx=RESIZE_FACTOR,
                          fy=RESIZE_FACTOR, interpolation=cv2.INTER_CUBIC)
 
-    matches = pool.starmap(count_matches, [(name, img, identity) for name in candidates])
+    matches = pool.starmap(count_matches, [(name, img, identity) for name in candidate_keys])
 
     result = {}
     for label, goods in matches:
