@@ -4,3 +4,7 @@ build/
 
 *.c
 *.pyd
+
+debug/
+stitch/
+capture/
