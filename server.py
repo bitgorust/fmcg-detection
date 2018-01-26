@@ -211,11 +211,14 @@ def detect():
         response.status = 400
         return json.dumps(result)
 
+    print('saving ' + image.filename)
     image.save('capture/', overwrite=True)
+    print('finish saving')
 
+    print('reading ' + image.filename)
     img_str = image.file.read()
+    print('finish reading')
     result = analyze(img_str, image.filename)
-    print(image.filename)
     return json.dumps(result)
 
 
