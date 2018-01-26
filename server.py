@@ -85,29 +85,30 @@ def save_result(dir, name, img1, kp1, img2, kp2, good):
 
 
 def count_matches(name, img, identity=None):
-    origin = img.copy()
-    kp, des = orb.detectAndCompute(img, None) if name not in difficult else brisk.detectAndCompute(img, None)
     goods = []
     for candidate in candidates[name]:
-        len_matches = 0
-        for index in range(1, 6):
-            matches = bf.knnMatch(candidate['des'], des, k=2)
-            if len(matches) != len_matches:
-                len_matches = len(matches)
-            else:
-                break
+        len_good = -1
+        index = 0
+        while True:
+            index += 1
+            kp, des = orb.detectAndCompute(img, None) if name not in difficult else brisk.detectAndCompute(img, None)
+            len_candidate_kp = len(candidate['kp'])
 
+            matches = bf.knnMatch(candidate['des'], des, k=2)
             good = []
             for match in matches:
                 if len(match) == 2:
                     m, n = match
                     if m.distance < MATCH_DISTANCE * n.distance:
                         good.append(m)
-            len_good = len(good)
-            len_candidate_kp = len(candidate['kp'])
+
+            if len_good != len(good):
+                len_good = len(good)
+            else:
+                break
 
             if DEBUG and identity is not None:
-                save_result(identity, '_'.join([str(len_good), str(len(candidate['kp'])), str(len(kp)), candidate['file'], str(index)]), candidate['img'], candidate['kp'], origin, kp, good)
+                save_result(identity, '_'.join([str(len_good), str(len(candidate['kp'])), str(len(kp)), candidate['file'], str(index)]), candidate['img'], candidate['kp'], img, kp, good)
 
             if name not in difficult and candidate['threshold'] == 0 and len_good < GOOD_THRESHOLD * RESIZE_FACTOR:
                 break
@@ -157,7 +158,6 @@ def count_matches(name, img, identity=None):
                 'kp': len_candidate_kp,
                 'threshold': candidate['threshold']
             })
-            kp, des = orb.detectAndCompute(img, None) if name not in difficult else brisk.detectAndCompute(img, None)
     return name, goods
 
 
