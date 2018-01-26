@@ -20,6 +20,8 @@ difficult = {
     '102544': 10,
     '102573': 15,
     '113351': 10,
+    '102524': 4,
+    '102525': 4,
 }
 
 DEBUG = False
@@ -197,7 +199,11 @@ def detect():
         print(key, request.get_header(key))
 
     result = {}
+
+    starttime = datetime.datetime.now()
+    print('getting image')
     image = request.files.get('image')
+    print('image got: ' + str(datetime.datetime.now() - starttime))
     if image is None:
         result['code'] = 400
         result['message'] = u'image文件为空'
@@ -211,13 +217,15 @@ def detect():
         response.status = 400
         return json.dumps(result)
 
+    starttime = datetime.datetime.now()
     print('saving ' + image.filename)
     image.save('capture/', overwrite=True)
-    print('finish saving')
+    print('finish saving: ' + str(datetime.datetime.now() - starttime))
 
+    starttime = datetime.datetime.now()
     print('reading ' + image.filename)
     img_str = image.file.read()
-    print('finish reading')
+    print('finish reading: ' + str(datetime.datetime.now() - starttime))
     result = analyze(img_str, image.filename)
     return json.dumps(result)
 
