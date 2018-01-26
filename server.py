@@ -11,12 +11,12 @@ product = {}
 with open('products.csv', 'r', encoding='UTF-8') as f:
     for line in f.readlines():
         [pid, name, barcode] = line.split(',')
-        product[pid.strip()] = name
+        product[pid.strip()] = name.strip()
 print(len(product))
 
 difficult = {
     '111471': 50,
-    '103055': 50,
+    # '103055': 50,
     '102544': 10,
     '102573': 15,
     '113351': 10,
