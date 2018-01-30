@@ -15,7 +15,7 @@ with open('products.csv', 'r', encoding='UTF-8') as f:
 print(len(product))
 
 difficult = {
-    '111471': 50,
+    # '111471': 50,
     # '103055': 50,
     '102544': 10,
     # '102573': 15,
@@ -32,7 +32,7 @@ difficult = {
 DEBUG = False
 PROCESSES = 12
 MATCH_DISTANCE = 0.7
-GOOD_THRESHOLD = 17
+GOOD_THRESHOLD = 10
 RESIZE_FACTOR = 1.0
 CANDIDATE_DIR = 'candidates'
 
@@ -117,7 +117,7 @@ def count_matches(name, img, identity=None):
 
             if name not in difficult and candidate['threshold'] == 0 and len_good < GOOD_THRESHOLD * RESIZE_FACTOR:
                 break
-            if name not in difficult and candidate['threshold'] > 0 and len_good / len_candidate_kp < candidate['threshold'] * RESIZE_FACTOR:
+            if name not in difficult and candidate['threshold'] > 0 and len_good < candidate['threshold'] * RESIZE_FACTOR:
                 break
             if name in difficult and len_good < difficult[name] * RESIZE_FACTOR:
                 break
@@ -171,6 +171,17 @@ def analyze(img_str, identity=None):
     img_np = np.fromstring(img_str, np.uint8)
 
     img = cv2.imdecode(img_np, cv2.IMREAD_GRAYSCALE)
+    # img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
+    # hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    # lower = np.array([0, 0, 0]) # np.array([35, 43, 46])
+    # upper = np.array([180, 255, 220]) # np.array([99, 255, 255])
+    # mask = cv2.inRange(hsv, lower, upper)
+    # cv2.imshow('mask', mask)
+    # cv2.waitKey(0)
+    # _, mask = cv2.threshold(mask, 128, 255, 1)
+    # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (8, 8))
+    # mask = cv2.dilate(mask, kernel, iterations=1)
+
     if RESIZE_FACTOR < 1.0:
         img = cv2.resize(img, None, fx=RESIZE_FACTOR,
                          fy=RESIZE_FACTOR, interpolation=cv2.INTER_CUBIC)
