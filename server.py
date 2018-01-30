@@ -73,7 +73,7 @@ for file in os.listdir(CANDIDATE_DIR):
         'expand': idx == '0'
     })
 print(str(len(candidates)) + ' candidates')
-candidate_keys = sorted(candidate_keys, key=lambda x: x in ('102573'))
+candidate_keys = sorted(candidate_keys, key=lambda x: x in ('102573', '111471'))
 
 
 def save_result(dir, name, img1, kp1, img2, kp2, good):
