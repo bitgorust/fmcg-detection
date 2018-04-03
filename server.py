@@ -35,7 +35,7 @@ difficult = {
 }
 
 DEBUG = False
-PROCESSES = 12
+PROCESSES = 32
 MATCH_DISTANCE = 0.7
 GOOD_THRESHOLD = 17
 RESIZE_FACTOR = 1.0
@@ -65,7 +65,7 @@ for file in os.listdir(CANDIDATE_DIR):
     if len(info) == 3 and RESIZE_FACTOR < 1.0:
         img = cv2.resize(img, None, fx=RESIZE_FACTOR,
                          fy=RESIZE_FACTOR, interpolation=cv2.INTER_CUBIC)
-    kp, des = orb.detectAndCompute(img, None) if name not in difficult else brisk.detectAndCompute(img, None)
+    kp, des = brisk.detectAndCompute(img, None)
     if name not in candidates:
         candidate_keys.append(name)
         candidates[name] = []
@@ -101,7 +101,7 @@ def count_matches(name, img, identity=None):
         index = 0
         while True:
             index += 1
-            kp, des = orb.detectAndCompute(img, None) if name not in difficult else brisk.detectAndCompute(img, None)
+            kp, des = brisk.detectAndCompute(img, None)
             len_candidate_kp = len(candidate['kp'])
 
             matches = bf.knnMatch(candidate['des'], des, k=2)
@@ -120,11 +120,9 @@ def count_matches(name, img, identity=None):
             if DEBUG and identity is not None:
                 save_result(identity, '_'.join([str(len_good), str(len(candidate['kp'])), str(len(kp)), candidate['file'], str(index)]), candidate['img'], candidate['kp'], img, kp, good)
 
-            if name not in difficult and candidate['threshold'] == 0 and len_good < GOOD_THRESHOLD * RESIZE_FACTOR:
+            if candidate['threshold'] == 0 and len_good < GOOD_THRESHOLD * RESIZE_FACTOR:
                 break
-            if name not in difficult and candidate['threshold'] > 0 and len_good < candidate['threshold'] * RESIZE_FACTOR:
-                break
-            if name in difficult and len_good < difficult[name] * RESIZE_FACTOR:
+            if candidate['threshold'] > 0 and len_good < candidate['threshold'] * RESIZE_FACTOR:
                 break
 
             print(candidate['file'] + ': ' + str(len_good) +
