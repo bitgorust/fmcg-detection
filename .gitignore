@@ -8,3 +8,4 @@ build/
 debug/
 stitch/
 capture/
+*.log

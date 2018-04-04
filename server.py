@@ -5,14 +5,18 @@ from multiprocessing.dummy import Pool as ThreadPool
 import numpy as np
 import cv2
 from bottle import run, get, post, request, response
+import pprint
+import logging
 
+pp = pprint.PrettyPrinter(indent=2)
+logging.basicConfig(filename='debug.log', level=logging.DEBUG)
 
 product = {}
 with open('products.csv', 'r', encoding='UTF-8') as f:
     for line in f.readlines():
         [pid, name, barcode] = line.split(',')
         product[pid.strip()] = name.strip()
-print(len(product))
+logging.debug(len(product))
 
 difficult = {
     # '111471': 50,
@@ -37,7 +41,7 @@ difficult = {
 DEBUG = False
 PROCESSES = 32
 MATCH_DISTANCE = 0.7
-GOOD_THRESHOLD = 15
+GOOD_THRESHOLD = 17
 RESIZE_FACTOR = 1.0
 CANDIDATE_DIR = 'candidates'
 
@@ -77,16 +81,17 @@ for file in os.listdir(CANDIDATE_DIR):
         'threshold': float(threshold),
         'expand': idx == '0'
     })
-print(str(len(candidates)) + ' candidates')
-candidate_keys = sorted(candidate_keys, key=lambda x: x in ('102573', '111471', '102502'))
+logging.debug(str(len(candidates)) + ' candidates')
+candidate_keys = sorted(
+    candidate_keys, key=lambda x: x in ('102573', '111471', '102502'))
 
 
 def save_result(dir, name, img1, kp1, img2, kp2, good):
     goods = []
     for m in good:
         goods.append([m])
-    img1 = cv2.drawKeypoints(img1, kp1, None, color=(0,255,0), flags=0)
-    img2 = cv2.drawKeypoints(img2, kp2, None, color=(0,255,0), flags=0)
+    img1 = cv2.drawKeypoints(img1, kp1, None, color=(0, 255, 0), flags=0)
+    img2 = cv2.drawKeypoints(img2, kp2, None, color=(0, 255, 0), flags=0)
     img = cv2.drawMatchesKnn(img1, kp1, img2, kp2, goods, None, flags=2)
     dir = 'debug/' + dir
     if not os.path.exists(dir):
@@ -118,14 +123,15 @@ def count_matches(name, img, identity=None):
                 break
 
             if DEBUG and identity is not None:
-                save_result(identity, '_'.join([str(len_good), str(len(candidate['kp'])), str(len(kp)), candidate['file'], str(index)]), candidate['img'], candidate['kp'], img, kp, good)
+                save_result(identity, '_'.join([str(len_good), str(len(candidate['kp'])), str(len(
+                    kp)), candidate['file'], str(index)]), candidate['img'], candidate['kp'], img, kp, good)
 
             if candidate['threshold'] == 0 and len_good < GOOD_THRESHOLD * RESIZE_FACTOR:
                 break
             if candidate['threshold'] > 0 and len_good < candidate['threshold'] * RESIZE_FACTOR:
                 break
 
-            print(candidate['file'] + ': ' + str(len_good) +
+            logging.debug(candidate['file'] + ': ' + str(len_good) +
                   '/' + str(len_candidate_kp) + '=' + str(len_good / len_candidate_kp))
 
             if not candidate['expand']:
@@ -189,7 +195,8 @@ def analyze(img_str, identity=None):
         img = cv2.resize(img, None, fx=RESIZE_FACTOR,
                          fy=RESIZE_FACTOR, interpolation=cv2.INTER_CUBIC)
 
-    matches = pool.starmap(count_matches, [(name, img, identity) for name in candidate_keys])
+    matches = pool.starmap(
+        count_matches, [(name, img, identity) for name in candidate_keys])
 
     result = {}
     for label, goods in matches:
@@ -200,8 +207,8 @@ def analyze(img_str, identity=None):
             'count': len(goods),
             'detail': goods
         }
-    print(result)
-    print(datetime.datetime.now() - headtime)
+    logging.debug(pp.pformat(result))
+    logging.debug(datetime.datetime.now() - headtime)
     return result
 
 
@@ -215,14 +222,14 @@ def detect():
     response.set_header('Content-Type', 'application/json; charset=utf-8')
 
     for key in request.headers:
-        print(key, request.get_header(key))
+        logging.debug(key + ': ' + request.get_header(key))
 
     result = {}
 
     starttime = datetime.datetime.now()
-    print('getting image')
+    logging.debug('getting image')
     image = request.files.get('image')
-    print('image got: ' + str(datetime.datetime.now() - starttime))
+    logging.debug('image got: ' + str(datetime.datetime.now() - starttime))
     if image is None:
         result['code'] = 400
         result['message'] = u'image文件为空'
@@ -237,14 +244,14 @@ def detect():
         return json.dumps(result)
 
     starttime = datetime.datetime.now()
-    print('saving ' + image.filename)
+    logging.debug('saving ' + image.filename)
     image.save('capture/', overwrite=True)
-    print('finish saving: ' + str(datetime.datetime.now() - starttime))
+    logging.debug('finish saving: ' + str(datetime.datetime.now() - starttime))
 
     starttime = datetime.datetime.now()
-    print('reading ' + image.filename)
+    logging.debug('reading ' + image.filename)
     img_str = image.file.read()
-    print('finish reading: ' + str(datetime.datetime.now() - starttime))
+    logging.debug('finish reading: ' + str(datetime.datetime.now() - starttime))
     result = analyze(img_str, image.filename)
     return json.dumps(result)
 
