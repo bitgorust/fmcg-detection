@@ -37,7 +37,7 @@ difficult = {
 DEBUG = False
 PROCESSES = 32
 MATCH_DISTANCE = 0.7
-GOOD_THRESHOLD = 17
+GOOD_THRESHOLD = 15
 RESIZE_FACTOR = 1.0
 CANDIDATE_DIR = 'candidates'
 
@@ -78,7 +78,7 @@ for file in os.listdir(CANDIDATE_DIR):
         'expand': idx == '0'
     })
 print(str(len(candidates)) + ' candidates')
-candidate_keys = sorted(candidate_keys, key=lambda x: x in ('102573', '111471'))
+candidate_keys = sorted(candidate_keys, key=lambda x: x in ('102573', '111471', '102502'))
 
 
 def save_result(dir, name, img1, kp1, img2, kp2, good):
