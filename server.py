@@ -83,7 +83,7 @@ for file in os.listdir(CANDIDATE_DIR):
     })
 logging.debug(str(len(candidates)) + ' candidates')
 candidate_keys = sorted(
-    candidate_keys, key=lambda x: x in ('102573', '111471', '102502'))
+    candidate_keys, key=lambda x: x in ('102573', '111471', '102502', '113344'))
 
 
 def save_result(dir, name, img1, kp1, img2, kp2, good):
