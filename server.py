@@ -16,7 +16,7 @@ MAXA = 90
 
 pp = pprint.PrettyPrinter(indent=2)
 logging.basicConfig(filename='debug.log', level=logging.DEBUG)
-pool = ThreadPool(MAXA / STEP + 1)
+pool = ThreadPool(4)
 
 
 def decode(im, angle):
