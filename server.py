@@ -9,12 +9,14 @@ import pprint
 import logging
 import pyzbar.pyzbar as pyzbar
 
-pp = pprint.PrettyPrinter(indent=2)
-logging.basicConfig(filename='debug.log', level=logging.DEBUG)
-pool = ThreadPool()
 
 STEP = 25
 MAXA = 90
+
+
+pp = pprint.PrettyPrinter(indent=2)
+logging.basicConfig(filename='debug.log', level=logging.DEBUG)
+pool = ThreadPool(MAXA / STEP + 1)
 
 
 def decode(im, angle):
@@ -90,7 +92,7 @@ def detect():
     logging.debug('reading ' + image.filename)
     img_str = image.file.read()
     logging.debug('finish reading: ' + str(datetime.datetime.now() - starttime))
-    result = analyze(img_str, False)
+    result = analyze(img_str)
     return json.dumps(result)
 
 
