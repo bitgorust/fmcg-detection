@@ -7,209 +7,42 @@ import cv2
 from bottle import run, get, post, request, response
 import pprint
 import logging
+import pyzbar.pyzbar as pyzbar
 
 pp = pprint.PrettyPrinter(indent=2)
 logging.basicConfig(filename='debug.log', level=logging.DEBUG)
+pool = ThreadPool()
 
-product = {}
-with open('products.csv', 'r', encoding='UTF-8') as f:
-    for line in f.readlines():
-        [pid, name, barcode] = line.split(',')
-        product[pid.strip()] = name.strip()
-logging.debug(len(product))
-
-difficult = {
-    # '111471': 50,
-    # '103055': 50,
-    '102544': 10,
-    '102573': 4,
-    # '113351': 10,
-    '102524': 4,
-    '102525': 4,
-    '102586': 10,
-    '105011': 10,
-    '111309': 8,
-    '102658': 8,
-    '113397': 8,
-    '112594': 10,
-    '103321': 10,
-    # '102595': 10,
-    # '105012': 10,
-    # '102527': 10,
-}
-
-DEBUG = False
-PROCESSES = 32
-MATCH_DISTANCE = 0.7
-GOOD_THRESHOLD = 17
-RESIZE_FACTOR = 1.0
-CANDIDATE_DIR = 'candidates'
-
-pool = ThreadPool(PROCESSES)
-brisk = cv2.BRISK_create()
-orb = cv2.ORB_create()
-bf = cv2.BFMatcher(cv2.NORM_HAMMING)
+STEP = 25
+MAXA = 90
 
 
-candidate_keys = []
-candidates = {}
-for file in os.listdir(CANDIDATE_DIR):
-    if file.startswith('.'):
-        continue
-    filename, _ = _, ext = os.path.splitext(file)
-    info = filename.split('_')
-    if len(info) < 2 and len(info) > 3:
-        continue
-    threshold = '0'
-    if len(info) == 3:
-        [name, idx, threshold] = info
-    else:
-        [name, idx] = info
-    img = cv2.imread(CANDIDATE_DIR + '/' + file, 0)
-    if len(info) == 3 and RESIZE_FACTOR < 1.0:
-        img = cv2.resize(img, None, fx=RESIZE_FACTOR,
-                         fy=RESIZE_FACTOR, interpolation=cv2.INTER_CUBIC)
-    kp, des = brisk.detectAndCompute(img, None)
-    if name not in candidates:
-        candidate_keys.append(name)
-        candidates[name] = []
-    candidates[name].append({
-        'kp': kp,
-        'des': des,
-        'img': img,
-        'file': file,
-        'threshold': float(threshold),
-        'expand': idx == '0'
-    })
-logging.debug(str(len(candidates)) + ' candidates')
-candidate_keys = sorted(
-    candidate_keys, key=lambda x: x in ('102573', '111471', '102502', '113344'))
+def decode(im, angle):
+    if (angle > 0):
+        matrix = cv2.getRotationMatrix2D(center=(im.shape[1] / 2, im.shape[0] / 2), angle=angle, scale=1)
+        im = cv2.warpAffine(im, matrix, (im.shape[0] * 2, im.shape[1] * 2))
+    barcodes = set()
+    for obj in pyzbar.decode(im, symbols=[pyzbar.ZBarSymbol.CODE128]):
+        barcodes.add(obj.data.decode())
+    return barcodes
 
 
-def save_result(dir, name, img1, kp1, img2, kp2, good):
-    goods = []
-    for m in good:
-        goods.append([m])
-    img1 = cv2.drawKeypoints(img1, kp1, None, color=(0, 255, 0), flags=0)
-    img2 = cv2.drawKeypoints(img2, kp2, None, color=(0, 255, 0), flags=0)
-    img = cv2.drawMatchesKnn(img1, kp1, img2, kp2, goods, None, flags=2)
-    dir = 'debug/' + dir
-    if not os.path.exists(dir):
-        os.makedirs(dir)
-    cv2.imwrite(dir + '/' + name + '.png', img)
-
-
-def count_matches(name, img, identity=None):
-    goods = []
-    for candidate in candidates[name]:
-        len_good = -1
-        index = 0
-        while True:
-            index += 1
-            kp, des = brisk.detectAndCompute(img, None)
-            len_candidate_kp = len(candidate['kp'])
-
-            matches = bf.knnMatch(candidate['des'], des, k=2)
-            good = []
-            for match in matches:
-                if len(match) == 2:
-                    m, n = match
-                    if m.distance < MATCH_DISTANCE * n.distance:
-                        good.append(m)
-
-            if len_good != len(good):
-                len_good = len(good)
-            else:
-                break
-
-            if DEBUG and identity is not None:
-                save_result(identity, '_'.join([str(len_good), str(len(candidate['kp'])), str(len(
-                    kp)), candidate['file'], str(index)]), candidate['img'], candidate['kp'], img, kp, good)
-
-            if candidate['threshold'] == 0 and len_good < GOOD_THRESHOLD * RESIZE_FACTOR:
-                break
-            if candidate['threshold'] > 0 and len_good < candidate['threshold'] * RESIZE_FACTOR:
-                break
-
-            logging.debug(candidate['file'] + ': ' + str(len_good) +
-                  '/' + str(len_candidate_kp) + '=' + str(len_good / len_candidate_kp))
-
-            if not candidate['expand']:
-                src_pts = np.float32(
-                    [candidate['kp'][m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
-                dst_pts = np.float32(
-                    [kp[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
-                transform, _ = cv2.findHomography(
-                    src_pts, dst_pts, cv2.RANSAC, 5.0)
-                if transform is None:
-                    break
-
-                h, w = candidate['img'].shape
-                pts = np.float32(
-                    [[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
-                dst = cv2.perspectiveTransform(pts, transform)
-                if dst is None:
-                    break
-
-                shape = [point for points in dst.tolist() for point in points]
-                img = cv2.fillConvexPoly(img, np.array(dst, np.int32), 1)
-            else:
-                contours = []
-                for m in good:
-                    x, y = kp[m.trainIdx].pt
-                    contours.append([int(x), int(y)])
-                x, y, w, h = cv2.boundingRect(
-                    np.array(contours, dtype=np.int32))
-                shape = [[x, y], [x, y + h], [x + w, y + h], [x + w, y]]
-                pts = np.float32(shape).reshape(-1, 1, 2)
-                img = cv2.fillConvexPoly(img, np.array(pts, np.int32), 1)
-
-            goods.append({
-                'shape': shape,
-                'score': len_good / len_candidate_kp,
-                'file': candidate['file'],
-                'good': len_good,
-                'kp': len_candidate_kp,
-                'threshold': candidate['threshold']
-            })
-    return name, goods
-
-
-def analyze(img_str, identity=None):
+def analyze(img_str):
     headtime = datetime.datetime.now()
     img_np = np.fromstring(img_str, np.uint8)
 
-    img = cv2.imdecode(img_np, cv2.IMREAD_GRAYSCALE)
-    # img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
-    # hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    # lower = np.array([0, 0, 0]) # np.array([35, 43, 46])
-    # upper = np.array([180, 255, 220]) # np.array([99, 255, 255])
-    # mask = cv2.inRange(hsv, lower, upper)
-    # cv2.imshow('mask', mask)
-    # cv2.waitKey(0)
-    # _, mask = cv2.threshold(mask, 128, 255, 1)
-    # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (8, 8))
-    # mask = cv2.dilate(mask, kernel, iterations=1)
+    im = cv2.imdecode(img_np, cv2.IMREAD_GRAYSCALE)
+    results = pool.starmap(decode, [(im, angle) for angle in range(0, MAXA, STEP)])
+    logging.debug(pp.pformat(results))
 
-    if RESIZE_FACTOR < 1.0:
-        img = cv2.resize(img, None, fx=RESIZE_FACTOR,
-                         fy=RESIZE_FACTOR, interpolation=cv2.INTER_CUBIC)
+    barcodes = set()
+    for result in results:
+        barcodes |= result
+    barcodes = list(barcodes)
+    logging.debug(pp.pformat(barcodes))
 
-    matches = pool.starmap(
-        count_matches, [(name, img, identity) for name in candidate_keys])
-
-    result = {}
-    for label, goods in matches:
-        if len(goods) == 0:
-            continue
-        result[label] = {
-            'name': product[label] if label in product else u'未知',
-            'count': len(goods),
-            'detail': goods
-        }
-    logging.debug(pp.pformat(result))
     logging.debug(datetime.datetime.now() - headtime)
-    return result
+    return barcodes
 
 
 @get('/hello')
@@ -252,7 +85,7 @@ def detect():
     logging.debug('reading ' + image.filename)
     img_str = image.file.read()
     logging.debug('finish reading: ' + str(datetime.datetime.now() - starttime))
-    result = analyze(img_str, image.filename)
+    result = analyze(img_str)
     return json.dumps(result)
 
 
