@@ -27,12 +27,17 @@ def decode(im, angle):
     return barcodes
 
 
-def analyze(img_str):
+def analyze(img_str, parallel=True):
     headtime = datetime.datetime.now()
     img_np = np.fromstring(img_str, np.uint8)
 
     im = cv2.imdecode(img_np, cv2.IMREAD_GRAYSCALE)
-    results = pool.starmap(decode, [(im, angle) for angle in range(0, MAXA, STEP)])
+    if parallel:
+        results = pool.starmap(decode, [(im, angle) for angle in range(0, MAXA, STEP)])
+    else:
+        results = []
+        for angle in range(0, MAXA, STEP):
+            results.append(decode(im, angle))
     logging.debug(pp.pformat(results))
 
     barcodes = set()
@@ -85,9 +90,9 @@ def detect():
     logging.debug('reading ' + image.filename)
     img_str = image.file.read()
     logging.debug('finish reading: ' + str(datetime.datetime.now() - starttime))
-    result = analyze(img_str)
+    result = analyze(img_str, False)
     return json.dumps(result)
 
 
 if __name__ == "__main__":
-    run(server='paste', host='0.0.0.0', port=8099)
+    run(server='paste', host='0.0.0.0', port=80)
